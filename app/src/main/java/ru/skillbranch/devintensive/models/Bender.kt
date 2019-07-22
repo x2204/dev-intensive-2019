@@ -1,124 +1,143 @@
 package ru.skillbranch.devintensive.models
 
-class Bender(var status: Status = Status.NORMAL, var question: Question = Question.NAME) {
-    private var errorCount = 0
+import android.util.Log
 
-    fun askQuestion(): String = question.question
+class Bender(var status: Status = Status.NORMAL, var question: Question = Question.NAME) {
+
+    var wrongAnswer:Int = 0
+    var allAnswer:Int = 0
+
+    fun askQuestion(): String = when (question) {
+
+        Question.NAME -> Question.NAME.question
+        Question.PROFESSION -> Question.PROFESSION.question
+        Question.MATERIAL -> Question.MATERIAL.question
+        Question.BDAY -> Question.BDAY.question
+        Question.SERIAL -> Question.SERIAL.question
+        Question.IDLE -> Question.IDLE.question
+    }
 
     fun listenAnswer(answer: String): Pair<String, Triple<Int, Int, Int>> {
-        val trAnswer = answer.trim()
+        Log.d("M_Bender","answer $answer")
+        Log.d("M_Bender","valid ${question.validate(answer)}")
 
-        val validateMessage = validate(trAnswer)
-        if (validateMessage != "")
-            return "$validateMessage\n${question.question}" to status.color
+        if (allAnswer < 5 ) {
+            if (question.validate(answer)) {
+                return if (question.answers.contains(answer.toLowerCase())) {
+                    allAnswer += 1
+                    wrongAnswer = 0
 
-        return if (question.answers.contains(trAnswer.toLowerCase())) {
-            question = question.nextQuestion()
-            "Отлично - ты справился\n${question.question}" to status.color
-        } else {
-            errorCount++
-            if (errorCount >= MAX_ERROR_COUNT) {
-                errorCount = 0
-                status = Status.NORMAL
-                question = Question.NAME
-                "Это неправильный ответ. Давай всё по новой\n${question.question}" to status.color
+                    question = question.nextQuestion()
+                    "Отлично - ты справился\n${question.question}" to status.color
+
+                } else {
+                    wrongAnswer += 1
+                    if (wrongAnswer < 3) {
+                        status = status.nextStatus()
+                        Log.d("M_Bender", "$wrongAnswer")
+                        Log.d("M_Bender", "Это неправильный ответ\n${question.question}")
+                        Log.d("M_Bender", "${status.color}")
+                        "Это неправильный ответ\n${question.question}" to status.color
+                    } else {
+                        status = Status.NORMAL
+                        question = Question.NAME
+                        wrongAnswer = 0
+
+                        Log.d("M_Bender", "$wrongAnswer")
+                        Log.d("M_Bender", "Это неправильный ответ. Давай все по новой\n${question.question}")
+                        Log.d("M_Bender", "${status.color}")
+
+                        "Это неправильный ответ. Давай все по новой\n${question.question}" to status.color
+                    }
+
+                }
             } else {
-                status = status.nextStatus()
-                "Это неправильный ответ\n${question.question}" to status.color
+                return "${question.errorMessage()}\n${question.question}" to status.color
             }
-        }
+        } else { return "На этом все, вопросов больше нет" to Triple(255,255,255)}
     }
 
-    private fun validate(trAnswer: String): String {
-        return when (question) {
-            Question.NAME -> {
-                val firstIsUpperCase = trAnswer.firstOrNull()?.isUpperCase() != false
-                if (firstIsUpperCase) {
-                    ""
-                } else {
-                    "Имя должно начинаться с заглавной буквы"
-                }
-            }
 
-            Question.PROFESSION -> {
-                val firstIsLowerCase = trAnswer.firstOrNull()?.isLowerCase() != false
-                if (firstIsLowerCase) {
-                    ""
-                } else {
-                    "Профессия должна начинаться со строчной буквы"
-                }
-            }
+    ///  Error in module3(ru.skillbranch.devintensive.InstrumentalTest1): androidx.test.espresso.base.DefaultFailureHandler$AssertionFailedWithCauseError:
+    // 'with text: is
+    // "Это неправильный ответ. Давай все по новой\nКак меня зовут?"'
+    // doesn't match the selected view. Expected: with text: is
+    // "Это неправильный ответ. Давай все по новой\nКак меня зовут?"
+    // Got: "AppCompatTextView{id=2131230913, res-name=tv_text, visibility=VISIBLE, width=320, height=100, has-focus=false,
+    // has-focusable=false, has-window-focus=true, is-clickable=false, is-enabled=true, is-focused=false, is-focusable=false,
+    // is-layout-requested=false, is-selected=false, layout-params=android.widget.LinearLayout$LayoutParams@a47407e, tag=null,
+    // root-is-layout-requested=false, has-input-connection=false, x=0.0, y=0.0, text=
+    // Это неправильный ответ\nКак меня зовут?,
+    // input-type=0, ime-target=false, has-links=false}"
 
-            Question.MATERIAL -> {
-                val containsDigits = trAnswer.contains("\\d".toRegex())
-                if (!containsDigits) {
-                    ""
-                } else {
-                    "Материал не должен содержать цифр"
-                }
-            }
 
-            Question.BDAY -> {
-                val containsLetters = trAnswer.contains("\\D".toRegex())
-                if (!containsLetters) {
-                    ""
-                } else {
-                    "Год моего рождения должен содержать только цифры"
-                }
-            }
 
-            Question.SERIAL -> {
-                val contains7Digits = trAnswer.length == 7 && !trAnswer.contains("\\D".toRegex())
-                if (contains7Digits) {
-                    ""
-                } else {
-                    "Серийный номер содержит только цифры, и их 7"
-                }
-            }
-            Question.IDLE -> "" // Ignore
-        }
-    }
 
-    enum class Status(val color: Triple<Int, Int, Int>) {
-        NORMAL(Triple(255, 255, 255)),
-        WARNING(Triple(255, 120, 0)),
-        DANGER(Triple(255, 60, 60)),
-        CRITICAL(Triple(255, 0, 0));
+
+    enum class Status (val color : Triple<Int, Int, Int>) {
+        NORMAL (Triple(255,255,255)),
+        WARNING(Triple(255,120,0)),
+        DANGER(Triple(255,60,60)),
+        CRITICAL(Triple(255,0,0));
+
 
         fun nextStatus(): Status {
-            val values = values()
-            return if (ordinal < values.lastIndex) {
-                values[ordinal + 1]
+            return  if (this.ordinal < values().lastIndex) {
+                values()[this.ordinal+1]
+
             } else {
-                values[0]
+                values()[0]
             }
         }
     }
+
+
+
+
 
     enum class Question(val question: String, val answers: List<String>) {
         NAME("Как меня зовут?", listOf("бендер", "bender")) {
-            override fun nextQuestion() = PROFESSION
+            override fun nextQuestion(): Question = PROFESSION
+            //Question.NAME -> "Имя должно начинаться с заглавной буквы"
+            override fun validate(answer: String): Boolean = answer.trim().firstOrNull()?.isUpperCase() ?: false
+            override fun errorMessage(): String = "Имя должно начинаться с заглавной буквы"
         },
         PROFESSION("Назови мою профессию?", listOf("сгибальщик", "bender")) {
-            override fun nextQuestion() = MATERIAL
+            override fun nextQuestion(): Question = MATERIAL
+            //Question.PROFESSION -> "Профессия должна начинаться со строчной буквы"
+            override fun validate(answer: String): Boolean = answer.trim().firstOrNull()?.isLowerCase() ?: false
+            override fun errorMessage(): String = "Профессия должна начинаться со строчной буквы"
         },
-        MATERIAL("Из чего я сделан?", listOf("металл", "дерево", "metal", "iron", "wood")) {
-            override fun nextQuestion() = BDAY
+        MATERIAL("Из чего я сделан?", listOf("металл", "дерево","metal", "iron", "wood")) {
+            override fun nextQuestion(): Question = BDAY
+            //Question.MATERIAL -> "Материал не должен содержать цифр"
+            override fun validate(answer: String): Boolean = answer.trim().contains(Regex("\\d")).not()
+            override fun errorMessage(): String = "Материал не должен содержать цифр"
         },
         BDAY("Когда меня создали?", listOf("2993")) {
-            override fun nextQuestion() = SERIAL
+            override fun nextQuestion(): Question = SERIAL
+            //Question.BDAY -> "Год моего рождения должен содержать только цифры"
+            override fun validate(answer: String): Boolean = answer.trim().contains(Regex("^[0-9]*$"))
+            override fun errorMessage(): String = "Год моего рождения должен содержать только цифры"
         },
         SERIAL("Мой серийный номер?", listOf("2716057")) {
-            override fun nextQuestion() = IDLE
+            override fun nextQuestion(): Question = IDLE
+            //Question.SERIAL -> "Серийный номер содержит только цифры, и их 7"
+            override fun validate(answer: String): Boolean = answer.trim().contains(Regex("^[0-9]{7}$"))
+            override fun errorMessage(): String = "Серийный номер содержит только цифры, и их 7"
         },
-        IDLE("На этом всё, вопросов больше нет", listOf()) {
-            override fun nextQuestion() = IDLE
+        IDLE("На этом все, вопросов больше нет", listOf()) {
+            override fun nextQuestion(): Question = IDLE
+            override fun validate(answer: String): Boolean = true
+            override fun errorMessage(): String = ""
+
         };
 
-        abstract fun nextQuestion(): Question
-    }
 
-    companion object Static {
-        const val MAX_ERROR_COUNT = 3
+        abstract fun  nextQuestion(): Question
+
+        abstract fun validate(answer: String):Boolean
+
+        abstract  fun  errorMessage(): String
     }
 }
